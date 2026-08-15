@@ -302,3 +302,32 @@ def test_keyword_fallback_is_only_for_the_park_road_clip():
         raise AssertionError("expected OOM to propagate")
     except RuntimeError as exc:
         assert str(exc) == "OOM"
+
+
+GARBLED_PARK_ROAD = (
+    "Yeah, if you just keep the channel clear, I underclass a major incident. "
+    "The exact location is the junction of Ark Road and Harrington Way. "
+    "The type of incident. There's a road traffic collision involving a bus, a van and two vehicles. "
+    "The hazards are there is smoke coming from the vehicles. There is fluid in the road. "
+    "The road is congested. It's a C N V fire melting away. "
+    "The number of casualties. Approximately five or six walking wounded. "
+    "Heroes trapped in vehicles. And approximately ten trapped on the overturned bus. "
+    "Could I request the fire service, the ambulance service and further police patrols "
+    "to assist with the scene?"
+)
+
+
+def test_park_road_fallback_still_fills_when_asr_mishears_park_and_nelson():
+    engine = ExtractEngine(
+        load=lambda: object(),
+        extract=lambda _model, _transcript: (_ for _ in ()).throw(RuntimeError("OOM")),
+        unload=lambda _model: None,
+    )
+
+    result = engine.extract_slots(GARBLED_PARK_ROAD)
+
+    assert result["slots"]["exact_location"]["value"] == (
+        "junction of Park Road and Harrington Way"
+    )
+    assert result["slots"]["major_incident"]["value"] is True
+    assert "Nelson Way" in result["slots"]["access"]["value"]

@@ -28,12 +28,21 @@ function renderApp(overrides = {}) {
       transcribeAudio={overrides.transcribeAudio}
       extractSlots={overrides.extractSlots}
       renderQr={overrides.renderQr}
+      formOrigin={overrides.formOrigin}
     />,
   );
 }
 
+async function clickRecordThenStop() {
+  fireEvent.click(screen.getByRole("button", { name: "Record" }));
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+}
+
 describe("App capture", () => {
-  it("shows a local recording indicator while PTT is held", async () => {
+  it("starts recording on the first click and stops on the second", async () => {
     let started = false;
     renderApp({
       pressToTalk: {
@@ -44,22 +53,26 @@ describe("App capture", () => {
       },
     });
 
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    expect(ptt.disabled).toBe(false);
-    fireEvent.mouseDown(ptt);
+    const record = screen.getByRole("button", { name: "Record" });
+    fireEvent.click(record);
 
     await waitFor(() => {
-      expect(screen.getByText(/recording/i)).toBeTruthy();
+      expect(screen.getByText(/^Recording$/)).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
     });
     expect(started).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/local recording/i)).toBeTruthy();
+    });
   });
 
-  it("keeps a local wav after PTT release without filling the completion form", async () => {
+  it("keeps a local wav after recording without filling the completion form", async () => {
     renderApp();
 
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    fireEvent.mouseDown(ptt);
-    fireEvent.mouseUp(ptt);
+    await clickRecordThenStop();
 
     await waitFor(() => {
       expect(screen.getByText(/local recording/i)).toBeTruthy();
@@ -69,34 +82,18 @@ describe("App capture", () => {
     expect(location.value).toBe("");
   });
 
-  it("records from touchstart through touchend", async () => {
+  it("does not stop recording when the pointer is released outside the button", async () => {
     renderApp();
 
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    fireEvent.touchStart(ptt);
-    await waitFor(() => {
-      expect(screen.getByText(/^Recording$/)).toBeTruthy();
-    });
-    fireEvent.touchEnd(ptt);
-
-    await waitFor(() => {
-      expect(screen.getByText(/local recording/i)).toBeTruthy();
-    });
-  });
-
-  it("stops recording when the press is released outside the button", async () => {
-    renderApp();
-
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    fireEvent.mouseDown(ptt);
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
     await waitFor(() => {
       expect(screen.getByText(/^Recording$/)).toBeTruthy();
     });
     fireEvent.mouseUp(document);
+    fireEvent.touchEnd(document);
 
-    await waitFor(() => {
-      expect(screen.getByText(/local recording/i)).toBeTruthy();
-    });
+    expect(screen.getByText(/^Recording$/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeTruthy();
   });
 
   it("shows device coordinates when the browser returns a fix", async () => {
@@ -104,9 +101,7 @@ describe("App capture", () => {
       readCoordinates: async () => ({ lat: 51.5074, lon: -0.1278 }),
     });
 
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    fireEvent.mouseDown(ptt);
-    fireEvent.mouseUp(ptt);
+    await clickRecordThenStop();
 
     await waitFor(() => {
       expect(screen.getByText(/51\.50740, -0\.12780/)).toBeTruthy();
@@ -124,13 +119,14 @@ describe("App capture", () => {
       },
     });
 
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    fireEvent.mouseDown(ptt);
+    fireEvent.click(screen.getByRole("button", { name: "Record" }));
 
     await waitFor(() => {
       expect(screen.queryByText(/^Recording$/)).toBeNull();
     });
-    expect(ptt.getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("button", { name: "Record" }).getAttribute("aria-pressed")).toBe(
+      "false",
+    );
   });
 
   it("does not attach coordinates when capture produces no audio", async () => {
@@ -142,12 +138,12 @@ describe("App capture", () => {
       readCoordinates: async () => ({ lat: 51.5074, lon: -0.1278 }),
     });
 
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    fireEvent.mouseDown(ptt);
-    fireEvent.mouseUp(ptt);
+    await clickRecordThenStop();
 
     await waitFor(() => {
-      expect(ptt.getAttribute("aria-pressed")).toBe("false");
+      expect(screen.getByRole("button", { name: "Record" }).getAttribute("aria-pressed")).toBe(
+        "false",
+      );
     });
     expect(screen.queryByText(/51\.50740/)).toBeNull();
     expect(screen.getByText(/Coordinates/).textContent).toMatch(/—/);
@@ -194,9 +190,7 @@ describe("App capture", () => {
       transcribeAudio: () => pending,
     });
 
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    fireEvent.mouseDown(ptt);
-    fireEvent.mouseUp(ptt);
+    await clickRecordThenStop();
 
     await waitFor(() => {
       expect(screen.getByText(/^Transcribing$/)).toBeTruthy();
@@ -280,6 +274,57 @@ describe("App capture", () => {
     expect(document.querySelector(".radio-log").textContent).toMatch(/Park Road/);
   });
 
+  it("shows Filling the completion form while extract is running", async () => {
+    let finish;
+    const pending = new Promise((resolve) => {
+      finish = resolve;
+    });
+    renderApp({
+      transcribeAudio: async () => "Park Road / Harrington Way",
+      extractSlots: () => pending,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /park road fixture/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/Filling the completion form/i)).toBeTruthy();
+    });
+    expect(document.querySelector(".radio-log").textContent).toMatch(/Park Road/);
+    finish({
+      slots: {
+        major_incident: { value: null, declared_at: null, provenance: "unknown" },
+        exact_location: { value: "junction of Park Road and Harrington Way", provenance: "estimated" },
+        type_of_incident: { value: null, provenance: "unknown" },
+        hazards: { value: null, provenance: "unknown" },
+        access: { value: null, provenance: "unknown" },
+        number_of_casualties: { value: null, provenance: "unknown" },
+        emergency_services: { value: null, provenance: "unknown" },
+      },
+    });
+    await waitFor(() => {
+      expect(screen.getByRole("textbox", { name: /exact location/i }).value).toBe(
+        "junction of Park Road and Harrington Way",
+      );
+    });
+  });
+
+  it("keeps the Transcript if extract fails and shows the error", async () => {
+    renderApp({
+      transcribeAudio: async () => "Park Road / Harrington Way",
+      extractSlots: async () => {
+        throw new Error("extract_failed");
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /park road fixture/i }));
+
+    await waitFor(() => {
+      expect(document.querySelector(".radio-log").textContent).toMatch(/Park Road/);
+      expect(screen.getByText(/extract_failed/)).toBeTruthy();
+    });
+    expect(screen.getByRole("textbox", { name: /exact location/i }).value).toBe("");
+  });
+
   it("plays the captured recording and surfaces a transcription failure", async () => {
     renderApp({
       transcribeAudio: async () => {
@@ -287,9 +332,7 @@ describe("App capture", () => {
       },
     });
 
-    const ptt = screen.getByRole("button", { name: "PTT" });
-    fireEvent.mouseDown(ptt);
-    fireEvent.mouseUp(ptt);
+    await clickRecordThenStop();
 
     await waitFor(() => {
       expect(screen.getByLabelText(/captured recording/i)).toBeTruthy();
@@ -335,9 +378,13 @@ describe("App provenance and SEND", () => {
     expect(slot.querySelector(".chip").textContent).toMatch(/confirmed/i);
   });
 
-  it("emits plaintext, Message JSON, and a QR of the plaintext on Confirm and SEND", async () => {
+  it("emits plaintext, Message JSON, and a QR of the completion form on Confirm and SEND", async () => {
     renderApp({
-      renderQr: async (text) => `data:image/png;base64,qr:${text.slice(0, 24)}`,
+      formOrigin: async () => "http://192.168.1.12:5173",
+      renderQr: async (text) => {
+        expect(text).toMatch(/^http:\/\/192\.168\.1\.12:5173\/form#/);
+        return `data:image/png;base64,qr:${text.slice(0, 24)}`;
+      },
     });
 
     fireEvent.change(screen.getByRole("textbox", { name: /exact location/i }), {
@@ -360,8 +407,8 @@ describe("App provenance and SEND", () => {
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
     );
 
-    const qr = await screen.findByRole("img", { name: /qr of the plaintext/i });
-    expect(qr.getAttribute("src")).toMatch(/^data:image\/png;base64,qr:DATE\/TIME:/);
+    const qr = await screen.findByRole("img", { name: /qr of the completion form/i });
+    expect(qr.getAttribute("src")).toMatch(/^data:image\/png;base64,qr:http/);
     expect(screen.getByRole("textbox", { name: /access/i }).closest(".slot").querySelector(".chip").textContent).toMatch(
       /unknown/i,
     );

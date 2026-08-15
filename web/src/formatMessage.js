@@ -1,4 +1,5 @@
 import { shownSlotValue } from "./updateSlot.js";
+import { formShareUrl } from "./formShare.js";
 
 const PLAINTEXT_ROWS = [
   ["major_incident", "Major incident"],
@@ -18,11 +19,16 @@ export function formatPlaintext(message) {
   return lines.join("\n");
 }
 
-export function emitSend(message) {
+export function emitSend(message, origin) {
   const plaintext = formatPlaintext(message);
+  const base =
+    origin ??
+    (typeof location !== "undefined" && location.origin
+      ? location.origin
+      : "http://127.0.0.1:5173");
   return {
     plaintext,
     json: structuredClone(message),
-    qrPayload: plaintext,
+    qrPayload: formShareUrl(message, base),
   };
 }

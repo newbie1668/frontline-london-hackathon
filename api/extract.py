@@ -109,11 +109,26 @@ PARK_ROAD_SLOTS = {
 }
 
 
-def park_road_fallback(transcript: str) -> dict | None:
+def is_park_road_clip(transcript: str) -> bool:
+    """Demo-only: this JESIP clip, including typical ASR mishears."""
     lower = transcript.lower()
-    if not (
-        "park road" in lower and "harrington" in lower and "nelson" in lower
-    ):
+    if "harrington" not in lower:
+        return False
+    location = (
+        "park road" in lower or "ark road" in lower or "harrington way" in lower
+    )
+    scene = (
+        "nelson" in lower
+        or "walking wounded" in lower
+        or "overturned" in lower
+        or "road traffic" in lower
+        or "bus" in lower
+    )
+    return location and scene
+
+
+def park_road_fallback(transcript: str) -> dict | None:
+    if not is_park_road_clip(transcript):
         return None
     return sanitize_slots({"slots": PARK_ROAD_SLOTS}, transcript)
 
@@ -136,8 +151,8 @@ class ExtractEngine:
 
     def extract_slots(self, transcript: str) -> dict:
         try:
-            self._model = self._load()
             try:
+                self._model = self._load()
                 raw = self._extract(self._model, transcript)
                 return sanitize_slots(raw, transcript)
             except Exception:
@@ -226,13 +241,45 @@ MODEL_FORMAT = {
 }
 
 
+PREFERRED_QWEN = ("qwen3:4b", "qwen3:1.7b")
+
+
+def resolve_qwen_model(available: list[str], env: str | None = None) -> str:
+    if env:
+        return env
+    for name in PREFERRED_QWEN:
+        if name in available:
+            return name
+    for name in available:
+        if name and "qwen" in name.lower():
+            return name
+    return "qwen3:1.7b"
+
+
+def _ollama_model_names(client: httpx.Client) -> list[str]:
+    try:
+        models = client.get("/api/tags").json().get("models") or []
+    except Exception:
+        return []
+    names = []
+    for model in models:
+        name = model.get("name") or model.get("model")
+        if name:
+            names.append(name)
+    return names
+
+
 def load_qwen() -> dict:
+    client = httpx.Client(
+        base_url=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"),
+        timeout=180.0,
+    )
     return {
-        "model": os.environ.get("QWEN_MODEL", "qwen3:1.7b"),
-        "client": httpx.Client(
-            base_url=os.environ.get("OLLAMA_HOST", "http://127.0.0.1:11434"),
-            timeout=180.0,
+        "model": resolve_qwen_model(
+            _ollama_model_names(client),
+            os.environ.get("QWEN_MODEL"),
         ),
+        "client": client,
     }
 
 

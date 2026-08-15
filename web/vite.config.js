@@ -47,6 +47,7 @@ function serveParkRoadFixture() {
 export default defineConfig({
   plugins: [react(), serveParkRoadFixture()],
   server: {
+    host: true,
     port: 5173,
     fs: { allow: [repoRoot] },
     proxy: {

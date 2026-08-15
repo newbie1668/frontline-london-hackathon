@@ -1,6 +1,6 @@
 import json
 
-from extract import extract_qwen, unload_qwen
+from extract import extract_qwen, resolve_qwen_model, unload_qwen
 
 
 class FakeOllama:
@@ -64,6 +64,13 @@ def test_extract_qwen_sends_transcript_without_coordinates():
     )
     assert "coordinates" not in payload
     assert "lat" not in json.dumps(payload["messages"])
+
+
+def test_resolve_qwen_model_prefers_env_then_installed_4b():
+    assert resolve_qwen_model(["qwen3:4b", "qwen3:1.7b"], env="qwen3:1.7b") == "qwen3:1.7b"
+    assert resolve_qwen_model(["qwen3:4b", "qwen3:1.7b"], env=None) == "qwen3:4b"
+    assert resolve_qwen_model(["llama3.2", "qwen2.5:3b"], env=None) == "qwen2.5:3b"
+    assert resolve_qwen_model(["llama3.2"], env=None) == "qwen3:1.7b"
 
 
 def test_unload_qwen_stops_keeping_the_model_in_ram():

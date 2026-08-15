@@ -77,12 +77,12 @@ describe("emitSend", () => {
     });
   });
 
-  it("puts only the plaintext in the QR, not the JSON or the Transcript", () => {
+  it("puts a completion-form URL in the QR, not the plaintext", () => {
     const message = parkRoadMessage();
-    const artifacts = emitSend(message);
+    const artifacts = emitSend(message, "http://192.168.1.12:5173");
 
-    expect(artifacts.qrPayload).toBe(artifacts.plaintext);
-    expect(artifacts.qrPayload).not.toBe(JSON.stringify(artifacts.json));
+    expect(artifacts.qrPayload.startsWith("http://192.168.1.12:5173/form#")).toBe(true);
+    expect(artifacts.qrPayload).not.toBe(artifacts.plaintext);
     expect(artifacts.qrPayload).not.toContain("extra radio chatter");
     expect(artifacts.qrPayload).not.toContain(message.incident_id);
   });

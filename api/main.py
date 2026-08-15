@@ -6,6 +6,8 @@ then unloads it. Never load Parakeet and an LLM at the same time.
 
 from __future__ import annotations
 
+import socket
+
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -49,6 +51,20 @@ class HealthResponse(BaseModel):
     transcribe: str = "not wired"
     extract: str = "not wired"
     asr_loaded: bool = False
+    lan_ip: Optional[str] = None
+
+
+def _lan_ip() -> Optional[str]:
+    try:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.connect(("1.1.1.1", 80))
+        ip = sock.getsockname()[0]
+        sock.close()
+    except OSError:
+        return None
+    if ip.startswith("127."):
+        return None
+    return ip
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -57,6 +73,7 @@ def health() -> HealthResponse:
         transcribe="parakeet",
         extract="qwen",
         asr_loaded=asr_engine.loaded,
+        lan_ip=_lan_ip(),
     )
 
 

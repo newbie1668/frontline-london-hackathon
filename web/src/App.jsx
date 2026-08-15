@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { encodeQr } from "./encodeQr.js";
 import { emitSend } from "./formatMessage.js";
 import { editSlot, setMajorIncident } from "./updateSlot.js";
@@ -84,6 +84,7 @@ export default function App({
   transcribeAudio,
   extractSlots,
   renderQr = encodeQr,
+  formOrigin,
 } = {}) {
   const [slots, setSlots] = useState(() => structuredClone(emptySlots));
   const [sent, setSent] = useState(null);
@@ -95,10 +96,10 @@ export default function App({
   const [capturedAudio, setCapturedAudio] = useState(null);
   const [audioUrl, setAudioUrl] = useState("");
   const [captureError, setCaptureError] = useState("");
+  const [extracting, setExtracting] = useState(false);
   const [coords, setCoords] = useState(null);
   const recordingRef = useRef(false);
-  const stopPtt = useRef(async () => {});
-  recordingRef.current = recording;
+  const startingRef = useRef(false);
 
   async function applyCapture(blob) {
     if (!blob) return;
@@ -124,8 +125,15 @@ export default function App({
       }
       setTranscript(text);
       if (extractSlots) {
-        const message = await extractSlots(text, nextCoords);
-        if (message?.slots) setSlots(message.slots);
+        setExtracting(true);
+        try {
+          const message = await extractSlots(text, nextCoords);
+          if (message?.slots) setSlots(message.slots);
+        } catch (err) {
+          setCaptureError(err instanceof Error ? err.message : "Extract failed");
+        } finally {
+          setExtracting(false);
+        }
       }
     } catch (err) {
       setCaptureError(err instanceof Error ? err.message : "Transcription failed");
@@ -134,42 +142,34 @@ export default function App({
     }
   }
 
-  async function onPttDown(event) {
+  async function onRecordToggle(event) {
     event.preventDefault();
+    if (recordingRef.current) {
+      try {
+        const blob = await pressToTalk.stop();
+        recordingRef.current = false;
+        setRecording(false);
+        await applyCapture(blob);
+      } catch (err) {
+        recordingRef.current = false;
+        setRecording(false);
+        setCaptureError(err instanceof Error ? err.message : "Recording failed");
+      }
+      return;
+    }
+    if (startingRef.current) return;
+    startingRef.current = true;
+    recordingRef.current = true;
     setRecording(true);
     try {
       await pressToTalk.start();
     } catch {
+      recordingRef.current = false;
       setRecording(false);
+    } finally {
+      startingRef.current = false;
     }
   }
-
-  async function onPttUp(event) {
-    event.preventDefault();
-    try {
-      const blob = await pressToTalk.stop();
-      setRecording(false);
-      await applyCapture(blob);
-    } catch (err) {
-      setRecording(false);
-      setCaptureError(err instanceof Error ? err.message : "Recording failed");
-    }
-  }
-
-  stopPtt.current = onPttUp;
-
-  useEffect(() => {
-    function onRelease(event) {
-      if (!recordingRef.current) return;
-      void stopPtt.current(event);
-    }
-    document.addEventListener("mouseup", onRelease);
-    document.addEventListener("touchend", onRelease);
-    return () => {
-      document.removeEventListener("mouseup", onRelease);
-      document.removeEventListener("touchend", onRelease);
-    };
-  }, []);
 
   async function onFixture() {
     await applyCapture(await loadFixture());
@@ -178,14 +178,20 @@ export default function App({
   async function onSend() {
     const id = incidentId ?? crypto.randomUUID();
     if (!incidentId) setIncidentId(id);
-    const artifacts = emitSend({
-      incident_id: id,
-      message_id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-      transcript,
-      coordinates: coords,
-      slots,
-    });
+    const origin = formOrigin
+      ? await formOrigin()
+      : globalThis.location?.origin ?? "http://127.0.0.1:5173";
+    const artifacts = emitSend(
+      {
+        incident_id: id,
+        message_id: crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        transcript,
+        coordinates: coords,
+        slots,
+      },
+      origin,
+    );
     setSent(artifacts);
     setQrUrl(await renderQr(artifacts.qrPayload));
   }
@@ -195,8 +201,9 @@ export default function App({
     if (captureError) return captureError;
     if (recording) return "Recording";
     if (transcribing) return "Transcribing";
+    if (extracting) return "Filling the completion form…";
     if (capturedAudio) return "Local recording captured.";
-    return "Hold PTT to record, or use the Park Road fixture.";
+    return "Click Record, play the sitrep into the mic, then click Stop.";
   }
 
   return (
@@ -218,6 +225,10 @@ export default function App({
         <section className="pane transcript-pane" aria-labelledby="transcript-heading">
           <h1 id="transcript-heading">Transcript</h1>
           <pre className="radio-log">{logText()}</pre>
+          {extracting ? <p className="status-line">Filling the completion form…</p> : null}
+          {captureError && transcript ? (
+            <p className="status-line status-error">{captureError}</p>
+          ) : null}
           {audioUrl ? (
             <audio className="capture-audio" controls src={audioUrl} aria-label="Captured recording" />
           ) : null}
@@ -226,17 +237,16 @@ export default function App({
               type="button"
               className={recording ? "ptt is-recording" : "ptt"}
               aria-pressed={recording}
-              onMouseDown={onPttDown}
-              onMouseUp={onPttUp}
-              onTouchStart={onPttDown}
-              onTouchEnd={onPttUp}
+              onClick={onRecordToggle}
               onContextMenu={(event) => event.preventDefault()}
             >
-              PTT
+              {recording ? "Stop" : "Record"}
             </button>
             <div className="ptt-actions">
               <p className="ptt-hint">
-                {recording ? "Release to stop" : "Hold PTT, play the sitrep into the mic"}
+                {recording
+                  ? "Click Stop when the sitrep is finished"
+                  : "Click Record, play the sitrep into the mic, then click Stop"}
               </p>
               <button type="button" className="fixture" onClick={onFixture}>
                 Park Road fixture
@@ -322,7 +332,10 @@ export default function App({
             <div className="send-artifacts">
               <pre aria-label="plaintext">{sent.plaintext}</pre>
               <pre aria-label="Message JSON">{JSON.stringify(sent.json, null, 2)}</pre>
-              {qrUrl ? <img alt="QR of the plaintext" src={qrUrl} /> : null}
+              {qrUrl ? <img alt="QR of the completion form" src={qrUrl} /> : null}
+              <a className="send-form-link" href={sent.qrPayload} target="_blank" rel="noreferrer">
+                Open M/ETHANE completion form
+              </a>
             </div>
           ) : (
             <p className="send-hint">Issue 5 — plaintext, JSON, and QR of the plaintext.</p>
