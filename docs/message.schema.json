@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/methane-capture/message.schema.json",
+  "title": "M/ETHANE Message",
+  "description": "One timestamped M/ETHANE or ETHANE. The model returns only `slots`. The app wraps the envelope. Coordinates are never produced by the model.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "incident_id",
+    "message_id",
+    "created_at",
+    "transcript",
+    "coordinates",
+    "slots"
+  ],
+  "properties": {
+    "incident_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "message_id": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "transcript": {
+      "type": "string"
+    },
+    "coordinates": {
+      "description": "Browser geolocation fix, or null. Never inferred from speech or place names.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["lat", "lon"],
+          "properties": {
+            "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+            "lon": { "type": "number", "minimum": -180, "maximum": 180 }
+          }
+        }
+      ]
+    },
+    "slots": {
+      "$ref": "#/$defs/slots"
+    }
+  },
+  "$defs": {
+    "provenance": {
+      "type": "string",
+      "enum": ["unknown", "estimated", "inferred", "confirmed"]
+    },
+    "majorIncidentSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "declared_at", "provenance"],
+      "properties": {
+        "value": {
+          "description": "true = Yes, false = No, null = Unknown. Display as Yes / No / Unknown. Never set true from casualty counts or scale.",
+          "type": ["boolean", "null"]
+        },
+        "declared_at": {
+          "description": "Set only when value is true; otherwise null.",
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "textSlot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "provenance"],
+      "properties": {
+        "value": { "type": ["string", "null"] },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "slots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "major_incident",
+        "exact_location",
+        "type_of_incident",
+        "hazards",
+        "access",
+        "number_of_casualties",
+        "emergency_services"
+      ],
+      "properties": {
+        "major_incident": { "$ref": "#/$defs/majorIncidentSlot" },
+        "exact_location": { "$ref": "#/$defs/textSlot" },
+        "type_of_incident": { "$ref": "#/$defs/textSlot" },
+        "hazards": { "$ref": "#/$defs/textSlot" },
+        "access": { "$ref": "#/$defs/textSlot" },
+        "number_of_casualties": { "$ref": "#/$defs/textSlot" },
+        "emergency_services": { "$ref": "#/$defs/textSlot" }
+      }
+    },
+    "modelOutput": {
+      "description": "What the local model must return. No coordinates, ids, or transcript.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slots"],
+      "properties": {
+        "slots": { "$ref": "#/$defs/slots" }
+      }
+    }
+  }
+}
