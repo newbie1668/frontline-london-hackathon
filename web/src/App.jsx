@@ -1,3 +1,5 @@
+import { useEffect, useRef, useState } from "react";
+
 const EMPTY_TEXT = { value: null, provenance: "unknown" };
 
 export const emptySlots = {
@@ -72,11 +74,65 @@ function ProvenanceChip({ value }) {
   return <span className={`chip chip-${value}`}>{value}</span>;
 }
 
-export default function App() {
+export default function App({ pressToTalk, readCoordinates, loadFixture } = {}) {
   const slots = emptySlots;
-  const coords = null;
   const transcript = "";
   const sent = false;
+  const [recording, setRecording] = useState(false);
+  const [capturedAudio, setCapturedAudio] = useState(null);
+  const [coords, setCoords] = useState(null);
+  const recordingRef = useRef(false);
+  const stopPtt = useRef(async () => {});
+  recordingRef.current = recording;
+
+  async function applyCapture(blob) {
+    if (!blob) return;
+    setCapturedAudio(blob);
+    setCoords(await readCoordinates());
+  }
+
+  async function onPttDown(event) {
+    event.preventDefault();
+    setRecording(true);
+    try {
+      await pressToTalk.start();
+    } catch {
+      setRecording(false);
+    }
+  }
+
+  async function onPttUp(event) {
+    event.preventDefault();
+    const blob = await pressToTalk.stop();
+    setRecording(false);
+    await applyCapture(blob);
+  }
+
+  stopPtt.current = onPttUp;
+
+  useEffect(() => {
+    function onRelease(event) {
+      if (!recordingRef.current) return;
+      void stopPtt.current(event);
+    }
+    document.addEventListener("mouseup", onRelease);
+    document.addEventListener("touchend", onRelease);
+    return () => {
+      document.removeEventListener("mouseup", onRelease);
+      document.removeEventListener("touchend", onRelease);
+    };
+  }, []);
+
+  async function onFixture() {
+    await applyCapture(await loadFixture());
+  }
+
+  function logText() {
+    if (transcript) return transcript;
+    if (recording) return "Recording";
+    if (capturedAudio) return "Local recording captured. Transcript is issue 2.";
+    return "Hold PTT to record, or use the Park Road fixture.";
+  }
 
   return (
     <div className="app">
@@ -96,14 +152,26 @@ export default function App() {
       <div className="workspace">
         <section className="pane transcript-pane" aria-labelledby="transcript-heading">
           <h1 id="transcript-heading">Transcript</h1>
-          <pre className="radio-log">
-            {transcript || "PTT is not wired. Saturday issue 1 records; issue 2 transcribes."}
-          </pre>
+          <pre className="radio-log">{logText()}</pre>
           <div className="ptt-row">
-            <button type="button" className="ptt" disabled>
+            <button
+              type="button"
+              className={recording ? "ptt is-recording" : "ptt"}
+              aria-pressed={recording}
+              onMouseDown={onPttDown}
+              onMouseUp={onPttUp}
+              onTouchStart={onPttDown}
+              onTouchEnd={onPttUp}
+              onContextMenu={(event) => event.preventDefault()}
+            >
               PTT
             </button>
-            <p className="ptt-hint">Hold to talk — issue 1</p>
+            <div className="ptt-actions">
+              <p className="ptt-hint">{recording ? "Release to stop" : "Hold to talk"}</p>
+              <button type="button" className="fixture" onClick={onFixture}>
+                Park Road fixture
+              </button>
+            </div>
           </div>
         </section>
 
@@ -146,6 +214,7 @@ export default function App() {
                       <textarea
                         readOnly
                         rows={2}
+                        aria-label={row.heading}
                         value={displayValue(row.key, slot)}
                         placeholder="Not stated — add or send anyway"
                       />
