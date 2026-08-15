@@ -6,6 +6,8 @@ Audio never leaves the laptop. The demo runs in airplane mode.
 
 Doctrine: [JESIP M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/). Training audio is © JESIP — radio sitrep only from [this animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0).
 
+![Transcript on the left and the official JESIP completion form on the right, filled from the Park Road sitrep. Major incident is Confirmed; other Slots stay Estimated until the officer edits.](docs/screenshot.png)
+
 ## Demo
 
 With both processes running (see [Run](#run)):
