@@ -1,12 +1,28 @@
 # M/ETHANE
 
-Voice-first capture of a JESIP M/ETHANE message for a first officer on scene. Speak freely; a local model fills the official completion form; the officer confirms; SEND emits plaintext, JSON, and a QR. It does not replace the officer, the JESIP app, or CAD.
+Voice-first capture of a JESIP M/ETHANE message for a first officer on scene. The officer speaks freely; a local model fills the official completion form; the officer confirms; SEND emits plaintext, JSON, and a QR of the completion form. It does not replace the officer, the JESIP app, or CAD.
 
-Doctrine: [JESIP M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/). Training audio used in the demo is © JESIP — radio sitrep only from [this animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0).
+Audio never leaves the laptop. The demo runs in airplane mode.
+
+Doctrine: [JESIP M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/). Training audio is © JESIP — radio sitrep only from [this animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0).
+
+## Demo
+
+With both processes running (see [Run](#run)):
+
+1. Open http://localhost:5173 once while online so fonts cache, then enable airplane mode.
+2. Click **Park Road fixture** (or **Record**, play the sitrep into the mic, **Stop**).
+3. Wait for the Transcript on the left, then the seven boxes on the right.
+4. Edit a box if needed — that Slot becomes **Confirmed**. SEND does not bulk-confirm the rest.
+5. **Confirm and SEND** — JESIP-ordered plaintext, Message JSON, and a QR. Scan the QR on a phone on the same LAN to open the completion form.
+
+Use only `fixtures/park-road-sitrep.wav` (or the matching mp3). Do not play the full JESIP video.
+
+Pitch: search-and-rescue / coordination, and honest provenance. Not burnout or paperwork.
 
 ## Run
 
-Two processes. `/transcribe` runs local Parakeet then unloads the ASR model. `/extract` runs local Ollama Qwen then unloads it.
+Two processes. `/transcribe` runs local Parakeet then unloads the ASR model. `/extract` runs local Ollama Qwen then unloads it. Never load both at once.
 
 ```bash
 # API (Python 3.11+ — required by parakeet-mlx)
@@ -14,7 +30,6 @@ cd api
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-# Local Qwen via Ollama. 1.7B or smaller on an 8 GB Air.
 export QWEN_MODEL="${QWEN_MODEL:-qwen3:1.7b}"
 ollama pull "$QWEN_MODEL"
 uvicorn main:app --reload --port 8000
@@ -29,31 +44,38 @@ Open http://localhost:5173
 
 ## Hardware
 
-MacBook Air M1, 8 GB RAM. Never load Parakeet and the LLM in memory at the same time. Unload ASR, then extract.
-
-## Saturday issues
-
-Execute in order. Label `agent`. Stretch (7) only if 1–6 are done.
-
-| # | Issue |
-|---|---|
-| 1 | PTT records wav; geolocation is a real fix or `null` |
-| 2 | Parakeet: Park Road clip → Transcript, then unload |
-| 3 | Qwen: Transcript → seven boxes + Provenance |
-| 4 | Edit → Confirmed; Major incident explicit; empty Access hardcoded |
-| 5 | SEND: plaintext + JSON + QR of the plaintext |
-| 6 | Airplane-mode demo (fixture wav, twice, no network) |
-| 7 | Stretch: second Message, same `incident_id` |
-
-After the GitHub remote exists:
-
-```bash
-./scripts/create-github-issues.sh
-```
+MacBook Air M1, 8 GB RAM. Unload ASR, then extract.
 
 ## Layout
 
-Transcript on the left. Official JESIP completion form on the right (seven boxes, unchanged). Provenance chips on each box.
+Transcript on the left. Official JESIP completion form on the right (seven boxes, unchanged). Provenance chips on each box: Unknown, Estimated, Inferred, Confirmed.
+
+Coordinates are a real browser fix or absent — never inferred from speech.
+
+## Status
+
+MVP is done. Stretch (a second Message on the same `incident_id`) is not in this demo.
+
+| # | What | Status |
+|---|---|---|
+| 1 | PTT records wav; geolocation is a real fix or `null` | Done |
+| 2 | Parakeet: Park Road clip → Transcript, then unload | Done |
+| 3 | Qwen: Transcript → seven boxes + Provenance | Done |
+| 4 | Edit → Confirmed; Major incident explicit | Done |
+| 5 | SEND: plaintext, JSON, QR of the completion form | Done |
+| 6 | Airplane-mode demo (fixture wav, no network) | Done |
+| 7 | Stretch: second Message, same `incident_id` | Not built |
+
+Issues: [docs/issues/](./docs/issues/) · [GitHub](https://github.com/newbie1668/frontline-london-hackathon/issues)
+
+## Tests
+
+```bash
+cd web && npm test
+cd api && source .venv/bin/activate && pytest
+```
+
+Live Parakeet / Qwen tests stay skipped unless `PARAKEET_LIVE=1` or `QWEN_LIVE=1`.
 
 ## Credit
 

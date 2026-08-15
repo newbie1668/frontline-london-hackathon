@@ -1,7 +1,7 @@
-# Saturday execution
+# Issues
 
-Issues 1–6 are the MVP. Issue 7 is stretch. Label `agent`.
+MVP (1–6) is done. Issue 7 is stretch and is not in the demo.
 
 Full text: [docs/issues/](./issues/).
 
-After GitHub exists: `./scripts/create-github-issues.sh`
+On GitHub: https://github.com/newbie1668/frontline-london-hackathon/issues

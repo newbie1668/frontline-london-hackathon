@@ -338,7 +338,7 @@ export default function App({
               </a>
             </div>
           ) : (
-            <p className="send-hint">Issue 5 — plaintext, JSON, and QR of the plaintext.</p>
+            <p className="send-hint">Confirm and SEND emits plaintext, JSON, and a QR of the completion form.</p>
           )}
         </section>
       </div>
