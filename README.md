@@ -2,96 +2,81 @@
 
 # M/ETHANE
 
-### Speak the scene. Check the official form. Send it — even with no signal.
+### A spoken JESIP form that still needs the officer.
 
-A first officer on scene talks naturally. This app turns that speech into the seven boxes UK emergency services already use, then waits for the officer to confirm before anything goes out.
-
-It does not replace the officer, the official JESIP app, or the control room.
+First officer on scene can talk normally, not in mnemonic order. The official seven boxes fill from that speech, then wait for a check. Audio never leaves the laptop.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-0b1f33?style=flat-square)](LICENSE)
-[![Runs offline](https://img.shields.io/badge/audio-stays%20on%20the%20laptop-c45c26?style=flat-square)](#privacy)
 
 </div>
 
-![Transcript on the left and the official completion form on the right, filled from a spoken Park Road sitrep](docs/screenshot.png)
+![Capture screen with the Park Road sitrep: words on the left, official completion form on the right](docs/screenshot.png)
 
 ## Why this exists
 
-When something serious happens, the first officer on scene has to get a shared picture to everyone else: where it is, what it is, what is dangerous, how to get in, how many people are hurt, and who is needed.
+UK fire, police and ambulance already use [M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/) for that first shared picture. Seven boxes.
 
-UK services already have a way to say that. It is called **M/ETHANE**. The problem is not the seven boxes. The problem is filling them while the scene is still unfolding — typing, or reciting letters in order, with gloved hands and a radio in the other.
+The hard part is doing them while you are still looking at the scene, often in gloves, often with a radio in the other hand, sometimes reciting the letters in order because that is how you were taught.
 
-This app is for the talking part. You speak. The form fills. You still decide what is true. The idea is coordination and honest information, not less paperwork.
+This is a talking version of the same form. It is not a replacement for the officer or the real JESIP app.
 
-## What is M/ETHANE?
+## The seven boxes
 
-[M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/) is the JESIP mnemonic for that first shared picture:
-
-| | Box | In plain English |
+| | | |
 |---|---|---|
-| **M** | Major incident | Has a major incident been *declared*? Not “does this look big?” |
-| **E** | Exact location | A place other services can actually find |
-| **T** | Type of incident | What kind of incident it is |
+| **M** | Major incident | Has one been declared? Not "does this look big?" |
+| **E** | Exact location | Somewhere other crews can actually find |
+| **T** | Type of incident | What kind of incident |
 | **H** | Hazards | What is dangerous, or might be |
 | **A** | Access | Best way in and out |
-| **N** | Number of casualties | How many people are hurt, and what you know about them |
-| **E** | Emergency services | Who is needed, or already there |
+| **N** | Number of casualties | How many people are hurt, and what you know |
+| **E** | Emergency services | Who you need, or who is already there |
 
-If major incident is No, the rest of the form is unchanged. That is an ETHANE message — same boxes, no declaration.
+If major incident is No, the other six stay. That is ETHANE: same form, no declaration.
 
-## How it works
+## Using it
 
-1. **Speak.** Hold Record and talk, or play the demo clip. You do not have to say the letters in order.
-2. **Read your words.** The left side shows the transcript — what the microphone heard, not a clinical note.
-3. **Check the seven boxes.** The right side is the official completion form. Speech goes into those boxes only.
-4. **See how each box was filled.** Every box has a label: not stated, taken from speech, filled in by the app, or confirmed by you.
-5. **Fix anything that is wrong.** Editing a box marks that box as confirmed. Sending does *not* quietly tick the rest as confirmed.
-6. **Confirm and SEND.** You get a short text version, the full record, and a QR code. A colleague on the same Wi‑Fi can scan the QR to open the form on their phone.
+Press Record and talk, or play the Park Road clip. You do not have to hit the mnemonic in order.
 
-Major incident is never guessed from casualty counts, vehicles, or “it looks like a major.” Yes is only allowed if it was said, or if the officer taps Yes.
+Left side is the transcript: what the microphone caught. Right side is the official completion form. Speech only writes into those boxes.
 
-Location pins are the same idea. A map point is attached only if the phone or laptop actually returned one. The app will not invent GPS from a street name.
+Each box has a label for how the value got there:
 
-## How sure is each box?
+- Unknown: empty
+- Estimated: taken from speech, including messy numbers ("about ten", "five or six")
+- Inferred: nobody said it; the app filled it. Stays inferred until you touch that box
+- Confirmed: you edited it, or accepted it. SEND does not confirm the rest for you
 
-That is the point of the coloured labels. They stay honest when you send.
+Empty boxes can still go out. They go as not stated.
 
-- **Unknown** — this box is empty.
-- **Estimated** — it came from speech, including rough numbers (“about ten”, “five or six”).
-- **Inferred** — it was not said; the app filled it. It stays inferred until you accept or edit that box.
-- **Confirmed** — you explicitly accepted or edited that box. Sending does not do this for you.
+Major incident is never inferred from casualty counts or how many vehicles are involved. Yes only if it was said, or the officer taps Yes.
 
-Empty boxes can still go out. They show as not stated, rather than inventing an answer.
+GPS is only attached if the laptop or phone actually returned a fix. A street name is not a pin.
 
-## Try the demo
+SEND gives you a short text copy, the full record, and a QR. A phone on the same Wi-Fi can scan the QR and open the form.
 
-You need the app running locally ([Quick start](#quick-start)). Then:
+## Try it
 
-1. Open [http://localhost:5173](http://localhost:5173) once while online, so the page can load. After that it can run in airplane mode.
-2. Click **Park Road fixture** — a short radio sitrep from JESIP training.
-3. Wait for the words on the left, then the boxes on the right.
-4. Change a box if you would, on scene.
-5. Click **Confirm and SEND**, then scan the QR from a phone if you want to see the form as a colleague would.
+Get it running ([below](#run-it-here)), then open [http://localhost:5173](http://localhost:5173) once while you still have network so the fonts load. Airplane mode after that is fine.
+
+1. Click Park Road fixture.
+2. Wait for the transcript, then the boxes.
+3. Change anything you would change on scene.
+4. Confirm and SEND. Scan the QR if you want to see what a colleague would see.
 
 The clip is the radio sitrep from [this JESIP animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0).
 
 ## Privacy
 
-Speech is transcribed on this laptop. It is not sent to a cloud. The demo is meant to work with the network off.
+Speech is transcribed on this laptop. It is not uploaded. Coordinates are a real device fix, or they are missing.
 
-Coordinates are a real device fix, or they are absent. They are never guessed.
+## Run it here
 
-## Quick start
+This was built on a MacBook Air M1 with 8 GB of RAM. Speech-to-text and the language model take turns so they are not both loaded together.
 
-Built to run on a MacBook Air (M1, 8 GB). Speech-to-text and the language model take turns in memory — they are not loaded at the same time.
+You need Python 3.11 or newer, Node.js, and [Ollama](https://ollama.com/) with a small Qwen model (`qwen3:1.7b` unless you set `QWEN_MODEL`).
 
-**You will need**
-
-- Python 3.11 or newer
-- Node.js
-- [Ollama](https://ollama.com/) with a small Qwen model (`qwen3:1.7b` by default)
-
-**API**
+API:
 
 ```bash
 cd api
@@ -103,7 +88,7 @@ ollama pull "$QWEN_MODEL"
 uvicorn main:app --reload --port 8000
 ```
 
-**Interface**
+Interface:
 
 ```bash
 cd web
@@ -113,18 +98,17 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173).
 
-## What this does not do
+## Not in this demo
 
-- It does not declare a major incident for you.
-- It does not send a live SMS, email, or update to CAD.
-- It does not replace the officer, or the official JESIP app.
-- A second sitrep on the same incident is not in this demo. Messages are meant to accumulate, not overwrite — that is the next step, not this one.
+No live SMS, no CAD hookup, and it will not declare a major incident for you.
+
+A second message on the same incident is not built either. In the real world those messages stack. Here you only get one.
 
 ## Credits
 
 M/ETHANE doctrine and the training audio are © [JESIP](https://www.jesip.org.uk/). This project is unofficial.
 
-Demo clip source: [JESIP METHANE animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0) — radio sitrep only.
+Clip: [JESIP METHANE animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0), radio sitrep only.
 
 ## License
 
