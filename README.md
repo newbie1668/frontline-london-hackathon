@@ -18,8 +18,6 @@ With both processes running (see [Run](#run)):
 4. Edit a box if needed — that Slot becomes **Confirmed**. SEND does not bulk-confirm the rest.
 5. **Confirm and SEND** — JESIP-ordered plaintext, Message JSON, and a QR. Scan the QR on a phone on the same LAN to open the completion form.
 
-Use only `fixtures/park-road-sitrep.wav` (or the matching mp3). Do not play the full JESIP video.
-
 Pitch: search-and-rescue / coordination, and honest provenance. Not burnout or paperwork.
 
 ## Run
