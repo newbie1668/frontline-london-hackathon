@@ -6,12 +6,12 @@ Doctrine: [JESIP M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/). T
 
 ## Run
 
-Two processes. Models are not wired in this scaffold (`/transcribe` and `/extract` return 501).
+Two processes. `/transcribe` runs local Parakeet then unloads the ASR model. `/extract` returns 501.
 
 ```bash
-# API
+# API (Python 3.11+ — required by parakeet-mlx)
 cd api
-python3 -m venv .venv
+python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000

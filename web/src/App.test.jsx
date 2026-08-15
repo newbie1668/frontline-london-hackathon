@@ -18,6 +18,7 @@ function renderApp(overrides = {}) {
       pressToTalk={pressToTalk}
       readCoordinates={overrides.readCoordinates ?? (async () => null)}
       loadFixture={overrides.loadFixture ?? (async () => silentWav)}
+      transcribeAudio={overrides.transcribeAudio}
     />,
   );
 }
@@ -155,5 +156,45 @@ describe("App capture", () => {
       expect(screen.getByText(/local recording/i)).toBeTruthy();
     });
     expect(screen.getByRole("textbox", { name: /exact location/i }).value).toBe("");
+  });
+
+  it("shows the Transcript in the left pane without filling a Slot", async () => {
+    renderApp({
+      loadFixture: async () => silentWav,
+      transcribeAudio: async () =>
+        "Park Road / Harrington Way, Nelson Way, two casualties, request fire and ambulance.",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /park road fixture/i }));
+
+    await waitFor(() => {
+      const log = document.querySelector(".radio-log");
+      expect(log.textContent).toMatch(/Park Road/);
+      expect(log.textContent).toMatch(/Nelson Way/);
+    });
+    expect(screen.getByRole("textbox", { name: /exact location/i }).value).toBe("");
+    expect(screen.getByText("Unknown").className).toContain("on");
+  });
+
+  it("shows Transcribing in the left pane while ASR is running", async () => {
+    let finish;
+    const pending = new Promise((resolve) => {
+      finish = resolve;
+    });
+    renderApp({
+      transcribeAudio: () => pending,
+    });
+
+    const ptt = screen.getByRole("button", { name: "PTT" });
+    fireEvent.mouseDown(ptt);
+    fireEvent.mouseUp(ptt);
+
+    await waitFor(() => {
+      expect(screen.getByText(/^Transcribing$/)).toBeTruthy();
+    });
+    finish("Park Road / Harrington Way");
+    await waitFor(() => {
+      expect(document.querySelector(".radio-log").textContent).toMatch(/Harrington Way/);
+    });
   });
 });

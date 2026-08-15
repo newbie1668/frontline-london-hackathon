@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import { blobToWav } from "./encodeWav.js";
 import { loadParkRoadFixture } from "./loadParkRoadFixture.js";
+import { transcribeAudio } from "./transcribeAudio.js";
 import { createPressToTalk } from "./pressToTalk.js";
 import { readDeviceCoordinates } from "./readDeviceCoordinates.js";
 import "./styles.css";
@@ -19,6 +20,7 @@ createRoot(document.getElementById("root")).render(
       pressToTalk={pressToTalk}
       readCoordinates={() => readDeviceCoordinates(navigator.geolocation)}
       loadFixture={loadParkRoadFixture}
+      transcribeAudio={transcribeAudio}
     />
   </StrictMode>,
 );

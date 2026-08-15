@@ -1,6 +1,6 @@
 """M/ETHANE capture API.
 
-Stubs only: /transcribe and /extract return 501 until Saturday issues 2–3.
+/transcribe runs local ASR then unloads it. /extract returns 501.
 Never load Parakeet and an LLM in the same process at the same time.
 """
 
@@ -12,7 +12,16 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from typing import Optional
 
+from asr import (
+    ParakeetEngine,
+    load_parakeet,
+    transcribe_parakeet,
+    unload_parakeet,
+)
+
 app = FastAPI(title="M/ETHANE capture", version="0.0.0")
+
+asr_engine = ParakeetEngine(load_parakeet, transcribe_parakeet, unload_parakeet)
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,24 +46,25 @@ class HealthResponse(BaseModel):
     status: str = "ok"
     transcribe: str = "not wired"
     extract: str = "not wired"
+    asr_loaded: bool = False
 
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse()
+    return HealthResponse(transcribe="parakeet", asr_loaded=asr_engine.loaded)
 
 
 @app.post("/transcribe")
-async def transcribe(audio: UploadFile = File(...)) -> JSONResponse:
-    _ = audio
-    return JSONResponse(
-        status_code=501,
-        content={
-            "error": "not_wired",
-            "issue": 2,
-            "detail": "Parakeet transcription is Saturday issue 2.",
-        },
-    )
+async def transcribe(audio: UploadFile = File(...)):
+    wav = await audio.read()
+    try:
+        text = asr_engine.transcribe_wav(wav)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={"error": "asr_failed", "detail": str(exc)},
+        )
+    return {"transcript": text}
 
 
 @app.post("/extract")

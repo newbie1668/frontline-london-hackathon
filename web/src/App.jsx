@@ -74,10 +74,11 @@ function ProvenanceChip({ value }) {
   return <span className={`chip chip-${value}`}>{value}</span>;
 }
 
-export default function App({ pressToTalk, readCoordinates, loadFixture } = {}) {
+export default function App({ pressToTalk, readCoordinates, loadFixture, transcribeAudio } = {}) {
   const slots = emptySlots;
-  const transcript = "";
   const sent = false;
+  const [transcript, setTranscript] = useState("");
+  const [transcribing, setTranscribing] = useState(false);
   const [recording, setRecording] = useState(false);
   const [capturedAudio, setCapturedAudio] = useState(null);
   const [coords, setCoords] = useState(null);
@@ -88,7 +89,16 @@ export default function App({ pressToTalk, readCoordinates, loadFixture } = {}) 
   async function applyCapture(blob) {
     if (!blob) return;
     setCapturedAudio(blob);
+    setTranscript("");
     setCoords(await readCoordinates());
+    if (!transcribeAudio) return;
+    setTranscribing(true);
+    try {
+      const text = await transcribeAudio(blob);
+      if (text) setTranscript(text);
+    } finally {
+      setTranscribing(false);
+    }
   }
 
   async function onPttDown(event) {
@@ -130,7 +140,8 @@ export default function App({ pressToTalk, readCoordinates, loadFixture } = {}) 
   function logText() {
     if (transcript) return transcript;
     if (recording) return "Recording";
-    if (capturedAudio) return "Local recording captured. Transcript is issue 2.";
+    if (transcribing) return "Transcribing";
+    if (capturedAudio) return "Local recording captured.";
     return "Hold PTT to record, or use the Park Road fixture.";
   }
 
