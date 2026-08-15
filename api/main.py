@@ -1,7 +1,7 @@
 """M/ETHANE capture API.
 
-/transcribe runs local ASR then unloads it. /extract returns 501.
-Never load Parakeet and an LLM in the same process at the same time.
+/transcribe runs local ASR then unloads it. /extract runs local Qwen
+then unloads it. Never load Parakeet and an LLM at the same time.
 """
 
 from __future__ import annotations
@@ -18,10 +18,12 @@ from asr import (
     transcribe_parakeet,
     unload_parakeet,
 )
+from extract import ExtractEngine, extract_qwen, load_qwen, unload_qwen, wrap_message
 
 app = FastAPI(title="M/ETHANE capture", version="0.0.0")
 
 asr_engine = ParakeetEngine(load_parakeet, transcribe_parakeet, unload_parakeet)
+extract_engine = ExtractEngine(load_qwen, extract_qwen, unload_qwen)
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,7 +53,11 @@ class HealthResponse(BaseModel):
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
-    return HealthResponse(transcribe="parakeet", asr_loaded=asr_engine.loaded)
+    return HealthResponse(
+        transcribe="parakeet",
+        extract="qwen",
+        asr_loaded=asr_engine.loaded,
+    )
 
 
 @app.post("/transcribe")
@@ -68,13 +74,23 @@ async def transcribe(audio: UploadFile = File(...)):
 
 
 @app.post("/extract")
-async def extract(body: ExtractRequest) -> JSONResponse:
-    _ = body
-    return JSONResponse(
-        status_code=501,
-        content={
-            "error": "not_wired",
-            "issue": 3,
-            "detail": "Local Qwen slot fill is Saturday issue 3.",
-        },
-    )
+async def extract(body: ExtractRequest):
+    if asr_engine.loaded:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "asr_loaded",
+                "detail": "Unload ASR before extract.",
+            },
+        )
+    try:
+        output = extract_engine.extract_slots(body.transcript)
+    except Exception as exc:
+        return JSONResponse(
+            status_code=500,
+            content={"error": "extract_failed", "detail": str(exc)},
+        )
+    coordinates = None
+    if body.coordinates is not None:
+        coordinates = {"lat": body.coordinates.lat, "lon": body.coordinates.lon}
+    return wrap_message(body.transcript, coordinates, output["slots"])

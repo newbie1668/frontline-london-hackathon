@@ -82,6 +82,7 @@ export default function App({
   readCoordinates,
   loadFixture,
   transcribeAudio,
+  extractSlots,
   renderQr = encodeQr,
 } = {}) {
   const [slots, setSlots] = useState(() => structuredClone(emptySlots));
@@ -102,12 +103,17 @@ export default function App({
     setCapturedAudio(blob);
     setTranscript("");
     setIncidentId((id) => id ?? crypto.randomUUID());
-    setCoords(await readCoordinates());
+    const nextCoords = await readCoordinates();
+    setCoords(nextCoords);
     if (!transcribeAudio) return;
     setTranscribing(true);
     try {
       const text = await transcribeAudio(blob);
       if (text) setTranscript(text);
+      if (text && extractSlots) {
+        const message = await extractSlots(text, nextCoords);
+        if (message?.slots) setSlots(message.slots);
+      }
     } finally {
       setTranscribing(false);
     }

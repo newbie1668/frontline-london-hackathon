@@ -19,6 +19,7 @@ function renderApp(overrides = {}) {
       readCoordinates={overrides.readCoordinates ?? (async () => null)}
       loadFixture={overrides.loadFixture ?? (async () => silentWav)}
       transcribeAudio={overrides.transcribeAudio}
+      extractSlots={overrides.extractSlots}
       renderQr={overrides.renderQr}
     />,
   );
@@ -197,6 +198,79 @@ describe("App capture", () => {
     await waitFor(() => {
       expect(document.querySelector(".radio-log").textContent).toMatch(/Harrington Way/);
     });
+  });
+
+  it("fills the seven official boxes from extract after the Transcript", async () => {
+    let seen;
+    renderApp({
+      loadFixture: async () => silentWav,
+      readCoordinates: async () => ({ lat: 51.5074, lon: -0.1278 }),
+      transcribeAudio: async () =>
+        "I am declaring this a major incident. Junction of Park Road and Harrington Way.",
+      extractSlots: async (transcript, coordinates) => {
+        seen = { transcript, coordinates };
+        return {
+          slots: {
+            major_incident: {
+              value: true,
+              declared_at: "2026-08-15T12:00:00Z",
+              provenance: "estimated",
+            },
+            exact_location: {
+              value: "junction of Park Road and Harrington Way",
+              provenance: "estimated",
+            },
+            type_of_incident: {
+              value: "road traffic collision involving a bus, a van and two vehicles",
+              provenance: "estimated",
+            },
+            hazards: {
+              value: "smoke coming from the vehicles, fluid in the road",
+              provenance: "estimated",
+            },
+            access: { value: "via Nelson Way", provenance: "estimated" },
+            number_of_casualties: {
+              value: "approximately five or six walking wounded",
+              provenance: "estimated",
+            },
+            emergency_services: {
+              value: "fire, ambulance, and further police patrols",
+              provenance: "estimated",
+            },
+          },
+        };
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /park road fixture/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox", { name: /exact location/i }).value).toBe(
+        "junction of Park Road and Harrington Way",
+      );
+    });
+    expect(seen).toEqual({
+      transcript:
+        "I am declaring this a major incident. Junction of Park Road and Harrington Way.",
+      coordinates: { lat: 51.5074, lon: -0.1278 },
+    });
+    expect(screen.getByRole("button", { name: /^Yes$/ }).className).toContain("on");
+    expect(screen.getByRole("textbox", { name: /type of incident/i }).value).toMatch(
+      /road traffic collision/,
+    );
+    expect(screen.getByRole("textbox", { name: /hazards/i }).value).toMatch(/smoke/);
+    expect(screen.getByRole("textbox", { name: /access/i }).value).toBe("via Nelson Way");
+    expect(screen.getByRole("textbox", { name: /number of casualties/i }).value).toMatch(
+      /five or six/,
+    );
+    expect(screen.getByRole("textbox", { name: /emergency services/i }).value).toMatch(
+      /fire/,
+    );
+    expect(
+      screen.getByRole("textbox", { name: /exact location/i }).closest(".slot").querySelector(".chip")
+        .textContent,
+    ).toMatch(/estimated/i);
+    expect(document.querySelector(".radio-log").textContent).toMatch(/Park Road/);
   });
 });
 

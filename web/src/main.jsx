@@ -4,6 +4,7 @@ import App from "./App.jsx";
 import { blobToWav } from "./encodeWav.js";
 import { loadParkRoadFixture } from "./loadParkRoadFixture.js";
 import { transcribeAudio } from "./transcribeAudio.js";
+import { extractSlots } from "./extractSlots.js";
 import { createPressToTalk } from "./pressToTalk.js";
 import { readDeviceCoordinates } from "./readDeviceCoordinates.js";
 import "./styles.css";
@@ -21,6 +22,7 @@ createRoot(document.getElementById("root")).render(
       readCoordinates={() => readDeviceCoordinates(navigator.geolocation)}
       loadFixture={loadParkRoadFixture}
       transcribeAudio={transcribeAudio}
+      extractSlots={extractSlots}
     />
   </StrictMode>,
 );

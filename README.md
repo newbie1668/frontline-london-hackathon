@@ -6,7 +6,7 @@ Doctrine: [JESIP M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/). T
 
 ## Run
 
-Two processes. `/transcribe` runs local Parakeet then unloads the ASR model. `/extract` returns 501.
+Two processes. `/transcribe` runs local Parakeet then unloads the ASR model. `/extract` runs local Ollama Qwen then unloads it.
 
 ```bash
 # API (Python 3.11+ — required by parakeet-mlx)
@@ -14,6 +14,9 @@ cd api
 python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+# Local Qwen via Ollama. 1.7B or smaller on an 8 GB Air.
+export QWEN_MODEL="${QWEN_MODEL:-qwen3:1.7b}"
+ollama pull "$QWEN_MODEL"
 uvicorn main:app --reload --port 8000
 
 # UI
