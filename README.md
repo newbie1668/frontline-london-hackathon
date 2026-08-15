@@ -1,31 +1,99 @@
+<div align="center">
+
 # M/ETHANE
 
-Voice-first capture of a JESIP M/ETHANE message for a first officer on scene. The officer speaks freely; a local model fills the official completion form; the officer confirms; SEND emits plaintext, JSON, and a QR of the completion form. It does not replace the officer, the JESIP app, or CAD.
+### Speak the scene. Check the official form. Send it — even with no signal.
 
-Audio never leaves the laptop. The demo runs in airplane mode.
+A first officer on scene talks naturally. This app turns that speech into the seven boxes UK emergency services already use, then waits for the officer to confirm before anything goes out.
 
-Doctrine: [JESIP M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/). Training audio is © JESIP — radio sitrep only from [this animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0).
+It does not replace the officer, the official JESIP app, or the control room.
 
-![Transcript on the left and the official JESIP completion form on the right, filled from the Park Road sitrep. Major incident is Confirmed; other Slots stay Estimated until the officer edits.](docs/screenshot.png)
+[![License: MIT](https://img.shields.io/badge/license-MIT-0b1f33?style=flat-square)](LICENSE)
+[![Runs offline](https://img.shields.io/badge/audio-stays%20on%20the%20laptop-c45c26?style=flat-square)](#privacy)
 
-## Demo
+</div>
 
-With both processes running (see [Run](#run)):
+![Transcript on the left and the official completion form on the right, filled from a spoken Park Road sitrep](docs/screenshot.png)
 
-1. Open http://localhost:5173 once while online so fonts cache, then enable airplane mode.
-2. Click **Park Road fixture** (or **Record**, play the sitrep into the mic, **Stop**).
-3. Wait for the Transcript on the left, then the seven boxes on the right.
-4. Edit a box if needed — that Slot becomes **Confirmed**. SEND does not bulk-confirm the rest.
-5. **Confirm and SEND** — JESIP-ordered plaintext, Message JSON, and a QR. Scan the QR on a phone on the same LAN to open the completion form.
+## Why this exists
 
-Pitch: search-and-rescue / coordination, and honest provenance. Not burnout or paperwork.
+When something serious happens, the first officer on scene has to get a shared picture to everyone else: where it is, what it is, what is dangerous, how to get in, how many people are hurt, and who is needed.
 
-## Run
+UK services already have a way to say that. It is called **M/ETHANE**. The problem is not the seven boxes. The problem is filling them while the scene is still unfolding — typing, or reciting letters in order, with gloved hands and a radio in the other.
 
-Two processes. `/transcribe` runs local Parakeet then unloads the ASR model. `/extract` runs local Ollama Qwen then unloads it. Never load both at once.
+This app is for the talking part. You speak. The form fills. You still decide what is true. The idea is coordination and honest information, not less paperwork.
+
+## What is M/ETHANE?
+
+[M/ETHANE](https://www.jesip.org.uk/joint-doctrine/m-ethane/) is the JESIP mnemonic for that first shared picture:
+
+| | Box | In plain English |
+|---|---|---|
+| **M** | Major incident | Has a major incident been *declared*? Not “does this look big?” |
+| **E** | Exact location | A place other services can actually find |
+| **T** | Type of incident | What kind of incident it is |
+| **H** | Hazards | What is dangerous, or might be |
+| **A** | Access | Best way in and out |
+| **N** | Number of casualties | How many people are hurt, and what you know about them |
+| **E** | Emergency services | Who is needed, or already there |
+
+If major incident is No, the rest of the form is unchanged. That is an ETHANE message — same boxes, no declaration.
+
+## How it works
+
+1. **Speak.** Hold Record and talk, or play the demo clip. You do not have to say the letters in order.
+2. **Read your words.** The left side shows the transcript — what the microphone heard, not a clinical note.
+3. **Check the seven boxes.** The right side is the official completion form. Speech goes into those boxes only.
+4. **See how each box was filled.** Every box has a label: not stated, taken from speech, filled in by the app, or confirmed by you.
+5. **Fix anything that is wrong.** Editing a box marks that box as confirmed. Sending does *not* quietly tick the rest as confirmed.
+6. **Confirm and SEND.** You get a short text version, the full record, and a QR code. A colleague on the same Wi‑Fi can scan the QR to open the form on their phone.
+
+Major incident is never guessed from casualty counts, vehicles, or “it looks like a major.” Yes is only allowed if it was said, or if the officer taps Yes.
+
+Location pins are the same idea. A map point is attached only if the phone or laptop actually returned one. The app will not invent GPS from a street name.
+
+## How sure is each box?
+
+That is the point of the coloured labels. They stay honest when you send.
+
+- **Unknown** — this box is empty.
+- **Estimated** — it came from speech, including rough numbers (“about ten”, “five or six”).
+- **Inferred** — it was not said; the app filled it. It stays inferred until you accept or edit that box.
+- **Confirmed** — you explicitly accepted or edited that box. Sending does not do this for you.
+
+Empty boxes can still go out. They show as not stated, rather than inventing an answer.
+
+## Try the demo
+
+You need the app running locally ([Quick start](#quick-start)). Then:
+
+1. Open [http://localhost:5173](http://localhost:5173) once while online, so the page can load. After that it can run in airplane mode.
+2. Click **Park Road fixture** — a short radio sitrep from JESIP training.
+3. Wait for the words on the left, then the boxes on the right.
+4. Change a box if you would, on scene.
+5. Click **Confirm and SEND**, then scan the QR from a phone if you want to see the form as a colleague would.
+
+The clip is the radio sitrep from [this JESIP animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0).
+
+## Privacy
+
+Speech is transcribed on this laptop. It is not sent to a cloud. The demo is meant to work with the network off.
+
+Coordinates are a real device fix, or they are absent. They are never guessed.
+
+## Quick start
+
+Built to run on a MacBook Air (M1, 8 GB). Speech-to-text and the language model take turns in memory — they are not loaded at the same time.
+
+**You will need**
+
+- Python 3.11 or newer
+- Node.js
+- [Ollama](https://ollama.com/) with a small Qwen model (`qwen3:1.7b` by default)
+
+**API**
 
 ```bash
-# API (Python 3.11+ — required by parakeet-mlx)
 cd api
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -33,50 +101,31 @@ pip install -r requirements.txt
 export QWEN_MODEL="${QWEN_MODEL:-qwen3:1.7b}"
 ollama pull "$QWEN_MODEL"
 uvicorn main:app --reload --port 8000
+```
 
-# UI
+**Interface**
+
+```bash
 cd web
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173
+Open [http://localhost:5173](http://localhost:5173).
 
-## Hardware
+## What this does not do
 
-MacBook Air M1, 8 GB RAM. Unload ASR, then extract.
+- It does not declare a major incident for you.
+- It does not send a live SMS, email, or update to CAD.
+- It does not replace the officer, or the official JESIP app.
+- A second sitrep on the same incident is not in this demo. Messages are meant to accumulate, not overwrite — that is the next step, not this one.
 
-## Layout
+## Credits
 
-Transcript on the left. Official JESIP completion form on the right (seven boxes, unchanged). Provenance chips on each box: Unknown, Estimated, Inferred, Confirmed.
+M/ETHANE doctrine and the training audio are © [JESIP](https://www.jesip.org.uk/). This project is unofficial.
 
-Coordinates are a real browser fix or absent — never inferred from speech.
+Demo clip source: [JESIP METHANE animation](https://www.youtube.com/watch?v=RaGcC4qZfZ0) — radio sitrep only.
 
-## Status
+## License
 
-MVP is done. Stretch (a second Message on the same `incident_id`) is not in this demo.
-
-| # | What | Status |
-|---|---|---|
-| 1 | PTT records wav; geolocation is a real fix or `null` | Done |
-| 2 | Parakeet: Park Road clip → Transcript, then unload | Done |
-| 3 | Qwen: Transcript → seven boxes + Provenance | Done |
-| 4 | Edit → Confirmed; Major incident explicit | Done |
-| 5 | SEND: plaintext, JSON, QR of the completion form | Done |
-| 6 | Airplane-mode demo (fixture wav, no network) | Done |
-| 7 | Stretch: second Message, same `incident_id` | Not built |
-
-Issues: [docs/issues/](./docs/issues/) · [GitHub](https://github.com/newbie1668/frontline-london-hackathon/issues)
-
-## Tests
-
-```bash
-cd web && npm test
-cd api && source .venv/bin/activate && pytest
-```
-
-Live Parakeet / Qwen tests stay skipped unless `PARAKEET_LIVE=1` or `QWEN_LIVE=1`.
-
-## Credit
-
-M/ETHANE is JESIP doctrine. This project is unofficial.
+[MIT](LICENSE)
