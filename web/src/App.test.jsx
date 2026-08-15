@@ -1,7 +1,14 @@
 /** @vitest-environment jsdom */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import App from "./App.jsx";
+
+beforeAll(() => {
+  if (!URL.createObjectURL) {
+    URL.createObjectURL = () => "blob:captured-recording";
+    URL.revokeObjectURL = () => {};
+  }
+});
 
 afterEach(() => cleanup());
 
@@ -271,6 +278,37 @@ describe("App capture", () => {
         .textContent,
     ).toMatch(/estimated/i);
     expect(document.querySelector(".radio-log").textContent).toMatch(/Park Road/);
+  });
+
+  it("plays the captured recording and surfaces a transcription failure", async () => {
+    renderApp({
+      transcribeAudio: async () => {
+        throw new Error("Failed to load audio");
+      },
+    });
+
+    const ptt = screen.getByRole("button", { name: "PTT" });
+    fireEvent.mouseDown(ptt);
+    fireEvent.mouseUp(ptt);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(/captured recording/i)).toBeTruthy();
+      expect(document.querySelector(".radio-log").textContent).toMatch(/Failed to load audio/);
+    });
+    expect(screen.getByRole("textbox", { name: /exact location/i }).value).toBe("");
+  });
+
+  it("says when the recording contained no recognisable speech", async () => {
+    renderApp({
+      transcribeAudio: async () => "",
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /park road fixture/i }));
+
+    await waitFor(() => {
+      expect(document.querySelector(".radio-log").textContent).toMatch(/No speech/i);
+    });
+    expect(screen.getByLabelText(/captured recording/i)).toBeTruthy();
   });
 });
 

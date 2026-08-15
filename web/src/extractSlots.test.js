@@ -41,12 +41,14 @@ describe("extractSlots", () => {
     ).resolves.toEqual(message);
   });
 
-  it("returns null when the API rejects extract", async () => {
+  it("throws when the API rejects extract", async () => {
     const fetchImpl = async () => ({
       ok: false,
-      json: async () => ({ error: "extract_failed" }),
+      json: async () => ({ error: "extract_failed", detail: "Unload ASR before extract." }),
     });
 
-    await expect(extractSlots("Park Road", null, fetchImpl)).resolves.toBe(null);
+    await expect(extractSlots("Park Road", null, fetchImpl)).rejects.toThrow(
+      "Unload ASR before extract.",
+    );
   });
 });

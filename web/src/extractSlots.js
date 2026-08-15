@@ -4,6 +4,9 @@ export async function extractSlots(transcript, coordinates, fetchImpl = globalTh
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ transcript, coordinates }),
   });
-  if (!response.ok) return null;
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || payload.error || "Extract failed");
+  }
   return response.json();
 }

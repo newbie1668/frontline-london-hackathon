@@ -23,13 +23,13 @@ describe("transcribeAudio", () => {
     );
   });
 
-  it("returns null when the API rejects the wav", async () => {
+  it("throws when the API rejects the wav", async () => {
     const wav = new Blob([new Uint8Array([82, 73, 70, 70])], { type: "audio/wav" });
     const fetchImpl = async () => ({
       ok: false,
-      json: async () => ({ error: "failed" }),
+      json: async () => ({ error: "asr_failed", detail: "Failed to load audio" }),
     });
 
-    await expect(transcribeAudio(wav, fetchImpl)).resolves.toBe(null);
+    await expect(transcribeAudio(wav, fetchImpl)).rejects.toThrow("Failed to load audio");
   });
 });

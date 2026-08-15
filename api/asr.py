@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import gc
 import os
+import subprocess
 import tempfile
 from typing import Any, Callable
 
@@ -17,14 +18,43 @@ PARAKEET_MODEL = os.environ.get(
 )
 
 
-def load_parakeet() -> Any:
-    from parakeet_mlx import from_pretrained
-
+def _ensure_ffmpeg_path() -> None:
     homebrew = "/opt/homebrew/bin"
     path = os.environ.get("PATH", "")
     if homebrew not in path:
         os.environ["PATH"] = homebrew + os.pathsep + path
+
+
+def load_parakeet() -> Any:
+    from parakeet_mlx import from_pretrained
+
+    _ensure_ffmpeg_path()
     return from_pretrained(PARAKEET_MODEL)
+
+
+def prepare_asr_wav(src: str) -> str:
+    """16 kHz mono — Parakeet's native rate, from laptop or phone captures."""
+    _ensure_ffmpeg_path()
+    dst = src + ".16k.wav"
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                src,
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                dst,
+            ],
+            check=True,
+            capture_output=True,
+        )
+        return dst
+    except Exception:
+        return src
 
 
 def transcribe_parakeet(model: Any, path: str) -> str:
@@ -63,6 +93,7 @@ class ParakeetEngine:
 
     def transcribe_wav(self, wav_bytes: bytes) -> str:
         path = None
+        prepared = None
         try:
             self._model = self._load()
             fd, path = tempfile.mkstemp(suffix=".wav")
@@ -70,15 +101,17 @@ class ParakeetEngine:
                 os.write(fd, wav_bytes)
             finally:
                 os.close(fd)
-            return self._transcribe(self._model, path)
+            prepared = prepare_asr_wav(path)
+            return self._transcribe(self._model, prepared)
         finally:
             model = self._model
             self._model = None
-            if path:
-                try:
-                    os.unlink(path)
-                except OSError:
-                    pass
+            for audio_path in (path, prepared):
+                if audio_path:
+                    try:
+                        os.unlink(audio_path)
+                    except OSError:
+                        pass
             if model is not None:
                 self._unload(model)
             model = None

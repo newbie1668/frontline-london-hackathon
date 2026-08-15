@@ -15,7 +15,7 @@ export const emptySlots = {
   emergency_services: { ...EMPTY_TEXT },
 };
 
-export const FORM_ROWS = [
+const FORM_ROWS = [
   {
     key: "major_incident",
     letter: "M",
@@ -93,6 +93,8 @@ export default function App({
   const [transcribing, setTranscribing] = useState(false);
   const [recording, setRecording] = useState(false);
   const [capturedAudio, setCapturedAudio] = useState(null);
+  const [audioUrl, setAudioUrl] = useState("");
+  const [captureError, setCaptureError] = useState("");
   const [coords, setCoords] = useState(null);
   const recordingRef = useRef(false);
   const stopPtt = useRef(async () => {});
@@ -102,6 +104,11 @@ export default function App({
     if (!blob) return;
     setCapturedAudio(blob);
     setTranscript("");
+    setCaptureError("");
+    setAudioUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(blob);
+    });
     setIncidentId((id) => id ?? crypto.randomUUID());
     const nextCoords = await readCoordinates();
     setCoords(nextCoords);
@@ -109,11 +116,19 @@ export default function App({
     setTranscribing(true);
     try {
       const text = await transcribeAudio(blob);
-      if (text) setTranscript(text);
-      if (text && extractSlots) {
+      if (!text) {
+        setCaptureError(
+          "No speech recognised. Play the clip louder into the mic, or use Park Road fixture.",
+        );
+        return;
+      }
+      setTranscript(text);
+      if (extractSlots) {
         const message = await extractSlots(text, nextCoords);
         if (message?.slots) setSlots(message.slots);
       }
+    } catch (err) {
+      setCaptureError(err instanceof Error ? err.message : "Transcription failed");
     } finally {
       setTranscribing(false);
     }
@@ -131,9 +146,14 @@ export default function App({
 
   async function onPttUp(event) {
     event.preventDefault();
-    const blob = await pressToTalk.stop();
-    setRecording(false);
-    await applyCapture(blob);
+    try {
+      const blob = await pressToTalk.stop();
+      setRecording(false);
+      await applyCapture(blob);
+    } catch (err) {
+      setRecording(false);
+      setCaptureError(err instanceof Error ? err.message : "Recording failed");
+    }
   }
 
   stopPtt.current = onPttUp;
@@ -172,6 +192,7 @@ export default function App({
 
   function logText() {
     if (transcript) return transcript;
+    if (captureError) return captureError;
     if (recording) return "Recording";
     if (transcribing) return "Transcribing";
     if (capturedAudio) return "Local recording captured.";
@@ -197,6 +218,9 @@ export default function App({
         <section className="pane transcript-pane" aria-labelledby="transcript-heading">
           <h1 id="transcript-heading">Transcript</h1>
           <pre className="radio-log">{logText()}</pre>
+          {audioUrl ? (
+            <audio className="capture-audio" controls src={audioUrl} aria-label="Captured recording" />
+          ) : null}
           <div className="ptt-row">
             <button
               type="button"
@@ -211,7 +235,9 @@ export default function App({
               PTT
             </button>
             <div className="ptt-actions">
-              <p className="ptt-hint">{recording ? "Release to stop" : "Hold to talk"}</p>
+              <p className="ptt-hint">
+                {recording ? "Release to stop" : "Hold PTT, play the sitrep into the mic"}
+              </p>
               <button type="button" className="fixture" onClick={onFixture}>
                 Park Road fixture
               </button>

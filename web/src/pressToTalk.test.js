@@ -13,7 +13,8 @@ class FakeMediaRecorder {
     this.listeners[name].push(fn);
   }
 
-  start() {
+  start(timeslice) {
+    this.timeslice = timeslice;
     this.state = "recording";
   }
 
@@ -52,6 +53,34 @@ describe("createPressToTalk", () => {
 
     expect(result).toBe(wav);
     expect(micStopped).toBe(true);
+  });
+
+  it("opens the mic so speaker and phone playback are not cancelled", async () => {
+    let constraints;
+    let recorder;
+    class CaptureRecorder extends FakeMediaRecorder {
+      constructor(stream, options) {
+        super(stream);
+        this.options = options;
+        recorder = this;
+      }
+    }
+    const ptt = createPressToTalk({
+      getUserMedia: async (asked) => {
+        constraints = asked;
+        return { getTracks: () => [{ stop() {} }] };
+      },
+      MediaRecorder: CaptureRecorder,
+      toWav: async () => new Blob([new Uint8Array([82, 73, 70, 70])], { type: "audio/wav" }),
+    });
+
+    await ptt.start();
+    await ptt.stop();
+
+    expect(constraints.audio.echoCancellation).toBe(false);
+    expect(constraints.audio.noiseSuppression).toBe(false);
+    expect(constraints.audio.autoGainControl).toBe(false);
+    expect(recorder.timeslice).toBeGreaterThan(0);
   });
 
   it("waits for an in-flight start before returning the wav", async () => {

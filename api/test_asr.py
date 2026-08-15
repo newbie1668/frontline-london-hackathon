@@ -1,4 +1,5 @@
 from asr import ParakeetEngine
+import os
 
 
 def test_transcribe_wav_loads_then_unloads():
@@ -75,3 +76,33 @@ def test_transcribe_wav_releases_model_for_collection():
 
     assert engine.loaded is False
     assert ref() is None
+
+
+def test_prepare_asr_wav_converts_to_16k_mono(tmp_path):
+    import math
+    import struct
+    import wave
+
+    from asr import prepare_asr_wav
+
+    src = tmp_path / "quiet.wav"
+    with wave.open(str(src), "w") as fh:
+        fh.setnchannels(2)
+        fh.setsampwidth(2)
+        fh.setframerate(48000)
+        frames = bytearray()
+        for i in range(48000):
+            sample = int(0.04 * 32767 * math.sin(2 * math.pi * 440 * i / 48000))
+            frames.extend(struct.pack("<hh", sample, sample))
+        fh.writeframes(frames)
+
+    prepared = prepare_asr_wav(str(src))
+    assert prepared != str(src)
+
+    with wave.open(prepared, "r") as fh:
+        assert fh.getnchannels() == 1
+        assert fh.getframerate() == 16000
+        frames = fh.readframes(fh.getnframes())
+        peak = max(abs(struct.unpack_from("<h", frames, i)[0]) for i in range(0, len(frames), 2))
+        assert peak > 0
+    os.unlink(prepared)
