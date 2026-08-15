@@ -19,6 +19,7 @@ function renderApp(overrides = {}) {
       readCoordinates={overrides.readCoordinates ?? (async () => null)}
       loadFixture={overrides.loadFixture ?? (async () => silentWav)}
       transcribeAudio={overrides.transcribeAudio}
+      renderQr={overrides.renderQr}
     />,
   );
 }
@@ -196,5 +197,61 @@ describe("App capture", () => {
     await waitFor(() => {
       expect(document.querySelector(".radio-log").textContent).toMatch(/Harrington Way/);
     });
+  });
+});
+
+describe("App provenance and SEND", () => {
+  it("sets a Slot to Confirmed when the officer edits the box", () => {
+    renderApp();
+
+    const location = screen.getByRole("textbox", { name: /exact location/i });
+    fireEvent.change(location, { target: { value: "Park Road / Harrington Way" } });
+
+    expect(location.value).toBe("Park Road / Harrington Way");
+    expect(location.closest(".slot").querySelector(".chip").textContent).toMatch(
+      /confirmed/i,
+    );
+  });
+
+  it("treats tapping Major incident Yes as the declaration", () => {
+    renderApp();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Yes$/ }));
+
+    const slot = screen.getByRole("button", { name: /^Yes$/ }).closest(".slot");
+    expect(screen.getByRole("button", { name: /^Yes$/ }).className).toContain("on");
+    expect(slot.querySelector(".chip").textContent).toMatch(/confirmed/i);
+  });
+
+  it("emits plaintext, Message JSON, and a QR of the plaintext on Confirm and SEND", async () => {
+    renderApp({
+      renderQr: async (text) => `data:image/png;base64,qr:${text.slice(0, 24)}`,
+    });
+
+    fireEvent.change(screen.getByRole("textbox", { name: /exact location/i }), {
+      target: { value: "Park Road / Harrington Way" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /confirm and send/i }));
+
+    const plaintext = await screen.findByLabelText("plaintext");
+    expect(plaintext.textContent).toMatch(/DATE\/TIME:/);
+    expect(plaintext.textContent).toMatch(/Exact location: Park Road \/ Harrington Way/);
+    expect(plaintext.textContent).toMatch(/Access: Not stated — add or send anyway/);
+
+    const json = JSON.parse((await screen.findByLabelText("Message JSON")).textContent);
+    expect(json.slots.exact_location).toEqual({
+      value: "Park Road / Harrington Way",
+      provenance: "confirmed",
+    });
+    expect(json.slots.access.provenance).toBe("unknown");
+    expect(json.incident_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
+
+    const qr = await screen.findByRole("img", { name: /qr of the plaintext/i });
+    expect(qr.getAttribute("src")).toMatch(/^data:image\/png;base64,qr:DATE\/TIME:/);
+    expect(screen.getByRole("textbox", { name: /access/i }).closest(".slot").querySelector(".chip").textContent).toMatch(
+      /unknown/i,
+    );
   });
 });

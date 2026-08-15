@@ -289,13 +289,18 @@ textarea {
   text-transform: uppercase;
 }
 
-.maj span {
+.maj button {
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  background: transparent;
   border: 1px solid var(--line);
   padding: 0.2rem 0.55rem;
   color: var(--unknown);
+  cursor: pointer;
 }
 
-.maj span.on {
+.maj button.on {
   background: var(--ink);
   color: var(--card);
   border-color: var(--ink);
@@ -339,6 +344,32 @@ textarea {
 .send:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.send-artifacts {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 0.85rem;
+}
+
+.send-artifacts pre {
+  margin: 0;
+  padding: 0.55rem;
+  background: #fff;
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  white-space: pre-wrap;
+  overflow: auto;
+  max-height: 12rem;
+}
+
+.send-artifacts img {
+  width: 10rem;
+  height: 10rem;
+  background: #fff;
+  padding: 0.35rem;
+  border: 1px solid var(--line);
 }
 
 .credit {

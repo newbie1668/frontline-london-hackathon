@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { encodeQr } from "./encodeQr.js";
+import { emitSend } from "./formatMessage.js";
+import { editSlot, setMajorIncident } from "./updateSlot.js";
 
 const EMPTY_TEXT = { value: null, provenance: "unknown" };
 
@@ -74,9 +77,17 @@ function ProvenanceChip({ value }) {
   return <span className={`chip chip-${value}`}>{value}</span>;
 }
 
-export default function App({ pressToTalk, readCoordinates, loadFixture, transcribeAudio } = {}) {
-  const slots = emptySlots;
-  const sent = false;
+export default function App({
+  pressToTalk,
+  readCoordinates,
+  loadFixture,
+  transcribeAudio,
+  renderQr = encodeQr,
+} = {}) {
+  const [slots, setSlots] = useState(() => structuredClone(emptySlots));
+  const [sent, setSent] = useState(null);
+  const [qrUrl, setQrUrl] = useState("");
+  const [incidentId, setIncidentId] = useState(null);
   const [transcript, setTranscript] = useState("");
   const [transcribing, setTranscribing] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -90,6 +101,7 @@ export default function App({ pressToTalk, readCoordinates, loadFixture, transcr
     if (!blob) return;
     setCapturedAudio(blob);
     setTranscript("");
+    setIncidentId((id) => id ?? crypto.randomUUID());
     setCoords(await readCoordinates());
     if (!transcribeAudio) return;
     setTranscribing(true);
@@ -135,6 +147,21 @@ export default function App({ pressToTalk, readCoordinates, loadFixture, transcr
 
   async function onFixture() {
     await applyCapture(await loadFixture());
+  }
+
+  async function onSend() {
+    const id = incidentId ?? crypto.randomUUID();
+    if (!incidentId) setIncidentId(id);
+    const artifacts = emitSend({
+      incident_id: id,
+      message_id: crypto.randomUUID(),
+      created_at: new Date().toISOString(),
+      transcript,
+      coordinates: coords,
+      slots,
+    });
+    setSent(artifacts);
+    setQrUrl(await renderQr(artifacts.qrPayload));
   }
 
   function logText() {
@@ -217,17 +244,37 @@ export default function App({ pressToTalk, readCoordinates, loadFixture, transcr
                     <p className="prompt">{row.prompt}</p>
                     {row.key === "major_incident" ? (
                       <div className="maj">
-                        <span className={slot.value === true ? "on" : ""}>Yes</span>
-                        <span className={slot.value === false ? "on" : ""}>No</span>
-                        <span className={slot.value === null ? "on" : ""}>Unknown</span>
+                        <button
+                          type="button"
+                          className={slot.value === true ? "on" : ""}
+                          onClick={() => setSlots((current) => setMajorIncident(current, true))}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          type="button"
+                          className={slot.value === false ? "on" : ""}
+                          onClick={() => setSlots((current) => setMajorIncident(current, false))}
+                        >
+                          No
+                        </button>
+                        <button
+                          type="button"
+                          className={slot.value === null ? "on" : ""}
+                          onClick={() => setSlots((current) => setMajorIncident(current, null))}
+                        >
+                          Unknown
+                        </button>
                       </div>
                     ) : (
                       <textarea
-                        readOnly
                         rows={2}
                         aria-label={row.heading}
                         value={displayValue(row.key, slot)}
                         placeholder="Not stated — add or send anyway"
+                        onChange={(event) =>
+                          setSlots((current) => editSlot(current, row.key, event.target.value))
+                        }
                       />
                     )}
                   </div>
@@ -236,10 +283,16 @@ export default function App({ pressToTalk, readCoordinates, loadFixture, transcr
             })}
           </ol>
 
-          <button type="button" className="send" disabled>
+          <button type="button" className="send" onClick={onSend}>
             Confirm and SEND
           </button>
-          {sent ? null : (
+          {sent ? (
+            <div className="send-artifacts">
+              <pre aria-label="plaintext">{sent.plaintext}</pre>
+              <pre aria-label="Message JSON">{JSON.stringify(sent.json, null, 2)}</pre>
+              {qrUrl ? <img alt="QR of the plaintext" src={qrUrl} /> : null}
+            </div>
+          ) : (
             <p className="send-hint">Issue 5 — plaintext, JSON, and QR of the plaintext.</p>
           )}
         </section>
